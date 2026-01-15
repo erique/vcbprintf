@@ -36,7 +36,13 @@ EOF
     # Start socat to capture serial output
     socat -u pty,raw,echo=0,link=$SERIAL_SOCK - > "$output_log" &
     local socat_pid=$!
+    disown $socat_pid
     sleep 1
+
+    # Show output in real-time
+    tail -f "$output_log" &
+    local tail_pid=$!
+    disown $tail_pid
 
     # Run FS-UAE in background
     ./fs-uae/fs-uae --stdout \
@@ -44,6 +50,7 @@ EOF
         --floppy_drive_speed=0 \
         test.fs-uae > "/tmp/printf-test-${test_name}.log" 2>&1 &
     local fsuae_pid=$!
+    disown $fsuae_pid
 
     # Wait for completion marker, enforcer hit, or timeout
     local max_wait=15
@@ -61,22 +68,16 @@ EOF
         sleep 1
     done
 
-    if [[ $hit_detected -eq 1 ]]; then
-        echo "ENFORCER HIT DETECTED:"
-        cat "$output_log"
-        kill $fsuae_pid 2>/dev/null || true
-        kill $socat_pid 2>/dev/null || true
-        rm -f "$SERIAL_SOCK"
-        exit 1
-    fi
-
     # Cleanup
-    kill $fsuae_pid 2>/dev/null || true
-    kill $socat_pid 2>/dev/null || true
+    kill -9 $tail_pid $fsuae_pid $socat_pid 2>/dev/null
+    sleep 0.5
     rm -f "$SERIAL_SOCK"
 
-    echo "Output:"
-    cat "$output_log"
+    if [[ $hit_detected -eq 1 ]]; then
+        echo ""
+        echo "ENFORCER HIT DETECTED"
+        exit 1
+    fi
     echo ""
 }
 
