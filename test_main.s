@@ -62,6 +62,7 @@ _main:
 	kprintf "Test 16: All bits: %08lx\n", #$FFFFFFFF
 
 	kprintf "=== Test Suite Complete ===\n"
+	kprintf "$$$ SHUTDOWN\n"
 
 	moveq	#0,d0
 	rts

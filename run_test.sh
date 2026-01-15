@@ -6,9 +6,7 @@
 set -e
 
 # Check required tools
-for tool in socat timeout; do
-    command -v "$tool" >/dev/null || { echo "Error: $tool not found"; exit 1; }
-done
+command -v socat >/dev/null || { echo "Error: socat not found"; exit 1; }
 
 [[ -x ./fs-uae/fs-uae ]] || { echo "Error: fs-uae not built. Run ./bootstrap_fsuae.sh first"; exit 1; }
 
@@ -30,7 +28,7 @@ run_test() {
 SetPatch >NIL:
 Run >NIL: <NIL: MuForce FATALHITS SHOWPC STACKCHECK AREGCHECK DREGCHECK DISPC DATESTAMP DEADLY VERBOSE CAPTURESUPER NEWVBR
 Run >NIL: <NIL: MuGuardianAngel SHOWFAIL SHOWHUNK DATESTAMP STACKCHECK DUMPWALL WAITFORMUFORCE SHOWSTACK DREGCHECK AREGCHECK SHOWPC NAMETAG CONSISTENCY DISPC
-Wait 10
+Wait 1
 PRINTF:$test_name
 endcli
 EOF
@@ -40,14 +38,41 @@ EOF
     local socat_pid=$!
     sleep 1
 
-    # Run FS-UAE
-    timeout -f 30 ./fs-uae/fs-uae --stdout \
+    # Run FS-UAE in background
+    ./fs-uae/fs-uae --stdout \
         --automatic_input_grab=0 \
         --floppy_drive_speed=0 \
-        test.fs-uae > "/tmp/printf-test-${test_name}.log" 2>&1 || true
+        test.fs-uae > "/tmp/printf-test-${test_name}.log" 2>&1 &
+    local fsuae_pid=$!
 
-    # Kill socat
-    kill -9 $socat_pid 2>/dev/null || true
+    # Wait for completion marker, enforcer hit, or timeout
+    local max_wait=15
+    local hit_detected=0
+    for ((i=0; i<max_wait; i++)); do
+        if grep -q '$$$ SHUTDOWN' "$output_log" 2>/dev/null; then
+            sleep 1  # Let output flush
+            break
+        fi
+        if grep -qE '(LONG|WORD|BYTE) (READ|WRITE) |Exception !!' "$output_log" 2>/dev/null; then
+            sleep 2  # Let MuForce output full details
+            hit_detected=1
+            break
+        fi
+        sleep 1
+    done
+
+    if [[ $hit_detected -eq 1 ]]; then
+        echo "ENFORCER HIT DETECTED:"
+        cat "$output_log"
+        kill $fsuae_pid 2>/dev/null || true
+        kill $socat_pid 2>/dev/null || true
+        rm -f "$SERIAL_SOCK"
+        exit 1
+    fi
+
+    # Cleanup
+    kill $fsuae_pid 2>/dev/null || true
+    kill $socat_pid 2>/dev/null || true
     rm -f "$SERIAL_SOCK"
 
     echo "Output:"
