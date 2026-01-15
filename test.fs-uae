@@ -1,0 +1,43 @@
+# FS-UAE configuration for printf tests
+
+[fs-uae]
+
+amiga_model = A1200/020
+chip_memory = 2048
+fast_memory = 8192
+
+# Use kickstart ROM
+kickstart_file = ../A1200.40.68.rom
+
+uae_cpu_model = 68030
+uae_mmu_model = 68030
+uae_fpu_model = 68882
+
+# Mount testbench as boot drive (has C/, Libs/, S/)
+hard_drive_0 = tb
+hard_drive_0_label = TESTBENCH
+
+# Mount test directory with binaries
+hard_drive_1 = .
+hard_drive_1_label = PRINTF
+
+# Serial port via Unix socket
+serial_port = /tmp/printf-test-serial.sock
+
+# Video settings
+window_width = 720
+window_height = 568
+fullscreen = 0
+
+# Disable input grab
+automatic_input_grab = 0
+joystick_port_1 = none
+
+# Disable floppy drive sounds
+floppy_drive_0_sounds = off
+floppy_drive_1_sounds = off
+
+# Speed up testing
+accuracy = 0
+
+console_debugger = 1

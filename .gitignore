@@ -1,0 +1,7 @@
+*.o
+*.txt
+test_*
+tb/S/
+fs-uae/
+.vscode/
+.DS_Store
